@@ -1,0 +1,57 @@
+---
+title: "Regressão Linear - Grupo 5 - Rui Sousa, Samuel Baptista, Armindo Machado e Mariana Reis"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code.
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*.
+
+```{r}
+plot(cars)
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
+Análise exploratória de variáveis:
+
+| nome var                   | desc var                                                                          | tipo var |
+|------------------------|------------------------|------------------------|
+| id                         | identificador único do paciente                                                   | tbd      |
+| chol                       | nivel de colesterol                                                               | tbd      |
+| stab.glu                   | nível de glicose estabilizada no sangue                                           | tbd      |
+| hdl                        | nível HDL                                                                         | tbd      |
+| ratio                      | razão colesterol/hdl                                                              | tbd      |
+| glyhb                      | nível de hemoglobina glicosilada no sangue (\>7 == diabetes)                      | tbd      |
+| location                   | área de residência (Buckingham ou Louisa)                                         | tbd      |
+| age                        | idade                                                                             | tbd      |
+| gender                     | sexo (male ou female)                                                             | tbd      |
+| height_m                   | altura em metros                                                                  | tbd      |
+| weight_kg                  | peso em kg                                                                        | tbd      |
+| bmi                        | indice de massa corporal                                                          | tbd      |
+| frame                      | morfologia corporal (small, medium ou large)                                      | tbd      |
+| bp.1s, bp.1d, bp.2s, bp.2d | tensão arterial primeiras sistolica, diastolica e segundas sistolica e diastólica | tbd      |
+| waist                      | perimetro cintura                                                                 | tbd      |
+| hip                        | perimetro anca                                                                    | tbd      |
+| time.ppn                   | tempo após última refeição em minutos                                             | tbd      |
+
+```{r}
+# Instalação de packages necessárias (descomentar se n estiver instalada)
+# install.packages('faraway')
+
+library(readxl)
+diabetesv2 <- read_excel("diabetesv2.xlsx")
+diabetes   <- as.data.frame(diabetesv2)
+```
+
+```{r}
+data(diabetes, package = 'faraway')
+```
+
+```{r}
+summary(diabetes)
+```
