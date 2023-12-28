@@ -17,10 +17,19 @@ When you save the notebook, an HTML file containing the code and output will be 
 
 The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
 
+```{r}
+# Carregamento de bibliotecas
+# Instalação (descomentar para instalar). Se não correr no R Studio, copiar e colar no R Console (comigo funcionou~)
+# install.packages('faraway')
+
+```
+
+Queremos demonstrar maior correlação entre Diabetes (stab.glu \> 7) e Obesidade (BMI \> 30)
+
 Análise exploratória de variáveis:
 
 | nome var                   | desc var                                                                          | tipo var |
-|------------------------|------------------------|------------------------|
+|----------------------------|-----------------------------------------------------------------------------------|----------|
 | id                         | identificador único do paciente                                                   | tbd      |
 | chol                       | nivel de colesterol                                                               | tbd      |
 | stab.glu                   | nível de glicose estabilizada no sangue                                           | tbd      |
@@ -40,18 +49,85 @@ Análise exploratória de variáveis:
 | time.ppn                   | tempo após última refeição em minutos                                             | tbd      |
 
 ```{r}
+# Descomentar linha de baixo para instalar
 # Instalação de packages necessárias (descomentar se n estiver instalada)
-# install.packages('faraway')
+# install.packages('faraway')  -> Se não correr no R Studio correr na R Console (comigo funcionou)
 
 library(readxl)
-diabetesv2 <- read_excel("diabetesv2.xlsx")
-diabetes   <- as.data.frame(diabetesv2)
+diabetes <- read_excel("diabetes.xlsx")
 ```
 
 ```{r}
+library(faraway)
 data(diabetes, package = 'faraway')
 ```
 
 ```{r}
+# Convertemos unidades de peso e altura para sistema métrico
+
+# Pounds para kilograms
+diabetes$weight <- diabetes$weight * 0.45359237
+attr(x = diabetes$weight, which = 'units') <- 'kilogram'
+  
+# Inches para metros
+diabetes$height <- diabetes$height * 0.0254 
+attr(x = diabetes$height, which = 'units') <- 'meters'
+
+attributes(diabetes$weight)
+attributes(diabetes$height)
+```
+
+```{r}
 summary(diabetes)
+```
+
+```{r}
+# Descomentar linha de baixo para instalar
+# install.packages('Amelia') 
+# Se não correr no R Studio correr na R Console (comigo funcionou)
+
+library(Amelia)
+
+```
+
+```{r}
+missmap(diabetes)
+```
+
+```{r}
+diabetes_NA <- na.omit((diabetes))
+
+# Histograma para incidência de diabetes
+hist(diabetes_NA$glyhb, xlab = 'Hemoglobina Glicosilada', main = 'Incidência de diabetes (> 7 == diabetes)')
+
+# Histograma para incidência de obesidade
+hist((diabetes_NA$weight/(diabetes_NA$height^2)), xlab = 'IMC' , main = 'Incidência de obesidade (> 30 == obeso)')
+```
+
+```{r}
+plot(density(diabetes_NA$glyhb, na.rm=TRUE), main = '')
+
+BMI <- diabetes_NA$weight/diabetes_NA$height^2
+
+plot((diabetes_NA$weight/(diabetes_NA$height^2)) ~ diabetes_NA$glyhb, data = diabetes_NA )
+abline(h = 30, v=7, lty=2, col='red')
+
+```
+
+```{r}
+# Descomentar linha de baixo para instalar
+# install.packages("corrplot")
+# Se não correr no R Studio correr na R Console (comigo funcionou)
+
+library(corrplot)
+
+```
+
+```{r}
+# Descomentar linhas de baixo para instalar
+#install.packages("tidyverse")
+#install.packages("caret")
+#install.packages("leaps")
+# Se não correr no R Studio correr na R Console (comigo funcionou)
+
 ```
