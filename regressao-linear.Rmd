@@ -1,0 +1,427 @@
+---
+title: "MEBI - G5 - Regressões Lineares"
+output:
+  html_document:
+    toc: yes
+    toc_depth: 2
+    toc_float: yes
+    theme: spacelab
+    number_sections: yes
+  pdf_document:
+    toc: yes
+    toc_depth: '2'
+---
+<style>
+  body {text-align:justify}
+</style>
+
+
+# Grupo 5
+
+* Armindo Machado
+* Mariana Reis  
+* Samuel Baptista 
+* Rui Sousa       
+
+# Apresentação do *dataset* escolhido
+
+Para este trabalho iremos utilizar um dataset produzido por [um estudo realizado por John Schorling, Department of Medicine, University of Virginia School of Medicine sobre a Diabetes tipo II](https://hbiostat.org/data/repo/diabetes.html). O dataset original pode ser encontrado no site [hbiostat.org](https://hbiostat.org/data/repo/diabetes.csv).
+
+Ao longo deste trabalho irá ser feita a análise no sentido de testar as hipóteses propostas pelos investigadores, nomeadamente:
+
+-   Existe uma forte associação entre a Diabetes tipo II e a obesidade<sup>1</sup>;
+-   O rácio cintura/anca pode ser um preditor de diabetes<sup>2</sup> e doenças coronárias<sup>3</sup>;
+
+<sup>1 IMC superior a 30</sup>
+
+<sup>2 Valores Hemoglobina glicosilada superiores a 30</sup>
+
+<sup>3 Rácio colesterol/hdl superior a 4.5</sup>
+
+Importação do dataset:
+
+```{r}
+library(readr)
+diabetes <- read_csv("diabetes.csv", show_col_types = FALSE)
+diabetes <- as.data.frame(diabetes)
+```
+
+De modo a utilizar escalas de medida mais familiares, e para calcular parámetros como o IMC optamos por converter as unidades do sistema imperial para o sistema métrico.
+
+```{r}
+# Convertemos unidades de peso e altura para sistema métrico
+
+# libras para kilogramas
+diabetes$weight <- diabetes$weight * 0.45359237
+attr(x = diabetes$weight, which = 'units') <- 'kilogram'
+  
+# polegadas para metros
+diabetes$height <- diabetes$height * 0.0254 
+
+attr(x = diabetes$height, which = 'units') <- 'meters'
+
+# polegadas para centímetros
+diabetes$hip    <- diabetes$hip    * 2.54
+diabetes$waist  <- diabetes$waist  * 2.54
+
+attr(x = diabetes$hip   , which = 'units') <- 'centimeters'
+attr(x = diabetes$waist , which = 'units') <- 'centimeters'
+```
+
+Partindo da conversão de unidades, calculamos o IMC e o rácio cintura/anca e adicionamo-los como colunas ao nosso *dataset*.
+
+```{r}
+diabetes['bmi']     <- diabetes$weight/(diabetes$height)^2
+diabetes['whratio'] <- diabetes$waist/diabetes$hip
+```
+
+Avançamos para a análise exploratória dos nossos dados.
+
+# Análise exploratória das variáveis envolvidas
+
+## Descrição das variáveis envolvidas
+
+| nome var                   | desc var                                                                           | tipo var                                                                            |
+|----------------------------|------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------|
+| id                         | identificador único do paciente                                                    | irrelevante                                                                         |
+| chol                       | nivel de colesterol                                                                | variável quantitativa contínua                                                      |
+| stab.glu                   | nível de glicose estabilizada no sangue                                            | variável quantitativa contínua                                                      |
+| hdl                        | nível HDL                                                                          | variável quantitativa contínua                                                      |
+| ratio                      | razão colesterol/hdl (indicador de risco de doença coronária se superior a 4.5)    | variável quantitativa contínua                                                      |
+| glyhb                      | nível de hemoglobina glicosilada no sangue (indicador de diabetes se superior a 7) | variável quantitativa contínua                                                      |
+| location                   | área de residência (Buckingham ou Louisa)                                          | variável qualitativa nominal                                                        |
+| age                        | idade                                                                              | variável quantitativa discreta                                                      |
+| gender                     | sexo (male ou female)                                                              | variável qualitativa nominal                                                        |
+| height_m                   | altura em metros                                                                   | variável qualitativa disreta                                                        |
+| weight_kg                  | peso em kg                                                                         | variável quantitativa discreta                                                      |
+| bmi                        | indice de massa corporal                                                           | variável quantitativa proporcional                                                  |
+| frame                      | morfologia corporal (small, medium ou large)                                       | variável qualitativa nominal ordinal                                                |
+| bp.1s, bp.1d, bp.2s, bp.2d | tensão arterial primeiras sistolica, diastolica e segundas sistolica e diastólica  | variável qualitativa contínua                                                       |
+| waist                      | perimetro cintura                                                                  | variável qualitativa contínua                                                       |
+| hip                        | perimetro anca                                                                     | variável qualitativa contínua                                                       |
+| time.ppn                   | tempo após última refeição em minutos                                              | variável qualitativa proporcional (possível relação com nível de glicose no sangue) |
+
+## Estatísticas sumárias das variáveis
+
+Removemos a variável id, pois é apenas um identificador, não sendo necessária para a análise estatística
+
+```{r}
+diabetes = diabetes[,-1]
+```
+
+Ao analisar as estísticas sumárias infra para as diferentes variáveis podemos tirar algumas primeiras conclusões, tais como:
+
+* a média do IMC da amostra é 28.78 (sobrepeso), os indíviduos no 1 Quartil estão possivelmente em sobrepeso e os indivíduos no 3 quartil são considerados obesos;
+* o valor médio do rácio colesterol/HDL é 4.52, o que indica que em média a amostra apresenta um risco elevado de doença coronária. Os indivíduos no 3 quartil têm risco sevedo. 
+* os valores de hemoglobina glicosilada, até ao 3 quartil rondam os 5.60, o que é um indicador que embora não haja uma incidência clara de diabetes a amostra apresenta risco de desenvolvimento da doença/encontra-se em pré-diabetes;
+
+```{r}
+summary(diabetes)
+```
+
+## Mapa de lacunas
+
+Criamos um mapa de lacunas para termos uma visão globalizada da qualidade das variáveis. Atendendo aos resultados infra, verificamos que as variáveis bp.2d e bp.2s correspondentes às segundas medições de pressão arterial diastólica e sistólica, respetivamente apresentam um número significativo de valores omissos, por isso decidimos excluí-las da nossa análise, visto que não dispomos de uma gama de valores satisfatória.
+
+```{r}
+library(Amelia)
+missmap(diabetes)
+```
+
+Remoção das variáveis bp.2d e bp.2s:
+
+```{r}
+diabetes = diabetes[,c(-14, -15)]
+```
+
+## Representação gráfica de algumas variáveis
+
+Abaixo criamos vários histogramas com o foco em visualizar a incidência de diabetes (com base na variável glyhb), a incidência de obesidade (com base na variável bmi) e a incidência de casos de risco severo de doenças coronárias.
+
+Ao anaisar o primeiro histograma podemos inferir que a quantidade de ocorrências de diabetes (hemoglobin glicosilada superior a 7) são ªa prioriª inferiores à quantidade de indivíduos saudáveis. No entanto importa referir que os dados indicam para a presença de um número elevado de indivíduos em risco de desenvolver diabetes (níveis superiores a 5.6). 
+
+```{r}
+diabetesNA <- na.omit(diabetes)
+
+# Histograma para incidência de diabetes
+hist(diabetesNA$glyhb, xlab = 'Hemoglobina Glicosilada', main = 'Incidência de diabetes (> 7 == diabetes)', xlim = c(0, 20))
+
+```
+Por sua vez, o histograma referente à distribuição dos IMCs aponta no sentido de a maioria da nossa amostra estar em níveis correspondentes em excesso de peso, sendo considerado sobrepeso o intervalo de IMC entre 25-30 e obesidade a partir de IMC 30. 
+
+```{r}
+# Histograma para incidência de obesidade
+hist(diabetesNA$bmi, xlab = 'IMC' , main = 'Incidência de obesidade (> 30 == obeso)', xlim = c(10, 60))
+```
+
+Por fim, o histograma infra representa a distribuição do rácio colesterol/HDL, que atua como indicador de risco de doenças coronárias. Ao análisar os dados é possível inferir que a amostra representa um risco elevado/severo de doenças coronárias.
+
+```{r}
+# Histograma de risco de doenças coronárias
+hist(diabetesNA$ratio, xlab = 'Chol/HDL', main = 'Risco de doença coronária (>4.5 == severo)', xlim = c(0, 20))
+```
+
+## Análise da incidência de diabetes, obesidade e risco de doenças coronárias e primeira análise de possível relação entre variáveis
+
+Nesta secção procedemos à elaboração de vários gráficos para perceber a densidade das variáveis glyhb, bmi e ratio para ter mais uma forma de visualizar a incidência de diabetes, obesidade e risco de doenças coronárias respetivamente. São também elaborados vários gráficos que comparam estas variáveis entre si para uma primeira análise da sua possível relação.
+
+O primeiro gráfico, que demonstra a distribuição dos níveis de hemoglobina glicosilada corroboram a primeira análise de que embora haja uma percentagem baixa de indivíduos com diabetes a amostra representa uma população de risco, estando cerca de metade da população em estado pré-diabético.
+
+```{r}
+# Incidência de diabetes
+plot(density(diabetesNA$glyhb, na.rm=TRUE), xlab = 'Hemoglobina Glicosilada', main = 'Incidência de Diabetes')
+abline(v=7,lty=2)
+```
+O segundo gráfico corrobora também a inferência sobre a população representada pela amostra estar com excesso de peso, apresentando a população valores de IMC maioritariamente superiores a 25.
+
+```{r}
+# Obesidade
+plot(density(diabetesNA$bmi, na.rm=TRUE), xlab = 'IMC', main = 'Incidência de obesidade')
+abline(v=30,lty=2)
+```
+
+O gráfico inferior representa a distribuição dos níveis de colesterol/HDL, indicador de risco de doenças coronárias. Numa primeira análise, embora a amostra não represente valores de risco severos, e ser necessária uma análise mais detalhada para perceber a significância dos valores apresentados, é plausível inferir que existe um risco moderado de doenças coronárias na população da amostra.
+
+```{r}
+# Doenças coronárias
+plot(density(diabetesNA$ratio, na.rm=TRUE), xlab = 'Rácio Colesterol/HDL' , main = 'Risco de Doença Coronária')
+abline(v=4.5,lty=2)
+```
+
+Os gráficos infra visam relacionar o perímetro abdominal com os níveis de hemoglobina, colesterol/HDL e IMC. Numa primeira análise o rácio perímetro abdominal não está diretamente relacionado com a incidência de diabetes, doença coronária ou obesidade.
+
+```{r}
+# Comparando rácio perimetro abdominal com incidencia de diabetes
+plot(diabetesNA$whratio,diabetesNA$glyhb, xlab = 'Rácios Perímetro Abdominal', ylab = 'Hemoglobina Glicosilada', main = 'Relação Hemoglobina Glicosilada - Perímetro Abdominal')
+abline(h = 7, lty=2)
+```
+
+```{r}
+
+# Comparando rácio perimetro abdominal com risco de doenças coronárias
+plot(diabetesNA$whratio, diabetesNA$ratio, xlab = 'Rácios Perímetro Abdominal', ylab = 'Rácio Colesterol/HDL')
+abline(h = 4.5 , lty = 2)
+
+```
+```{r}
+
+# Comparando rácio perimetro abdominal com risco de doenças coronárias
+plot(diabetesNA$whratio, diabetesNA$bmi, xlab = 'Rácios Perímetro Abdominal', ylab = 'IMC')
+abline(h = 30 , lty = 2)
+
+```
+
+O último gráfico pretende relacionar o IMC com os níveis de hemoglobina glicosilada no sangue, visando perceber se há uma relação entre a obesidade e a incidência de diabetes. numa primeira análise, o gráfico corrobora que existe uma relação entre a obesidade e a diabetes havendo uma maior incidência de diabetes (hemoglobina glicosilada superior a 7) em valores de IMC superiores a 25 (sobrepeso) e 30 (obesidade).
+
+```{r}
+# Comparando rácio de incidência de diabetes em função da obesidade
+plot(diabetesNA$bmi, diabetesNA$glyhb, ylab = 'Hemoglobina Glicosilada', xlab = 'IMC', main = 'Relação Hemoglobina Glicosilada - IMC')
+abline(h = 7, v = 30, lty= 2)
+abline(v = 25, lty = 2, col = 'red')
+```
+
+O gráfico infra visa analisar a relação entre o risco de doenças coronárias e a obesidade. À primeira vista, o gráfico indica que existe uma maior incid|ência de risco severo de doenças coronárias em indivíduos com excesso de peso (IMC superior a 25)
+
+```{r}
+# Comparando rácio de incidência de diabetes em função da obesidade
+plot(diabetesNA$bmi, diabetesNA$ratio, ylab = 'IMC', xlab = 'IMC', main = 'Colesterol/HDL')
+abline(h = 4.5, v = 30, lty= 2)
+abline(v = 25, lty = 2, col = 'red')
+```
+
+
+
+O último gráfico pretende analisar a relação rácio colesterol/HDL com a incidência de diabetes. Nesta primeira análise não é clara a existência de uma relação mas é plausível que haja uma relação havendo uma aparente maior incidência de casos de diabetes a partir de um rácio superior a 4.5 (risco severo).
+
+
+```{r}
+# Comparando rácio de incidência de diabetes em função da obesidade
+plot(diabetesNA$ratio, diabetesNA$glyhb, ylab = 'Hemoglobina Glicosilada', xlab = 'Colesterol/HDL', main = 'Relação Colesterol/HDL - Diabetes')
+abline(h = 7, v = 4.5, lty= 2)
+
+```
+
+## Matriz de correlação entre variáveis quantitativas
+
+Para melhor analisar a correlação entre as diferentes variáveis foram feitas as suas matrizes de correlação. 
+
+Ao analisar a primeira matriz, é possível observar que há:
+
+* uma forte correlação entre os níveis de hemoglobina glicosilada e os níveis de glicose no sangue (corroborando assim a relação deste parâmetro com a ocorrência de diabetes)
+* uma correlação moderada entre a incidência de diabetes e a idade do indivíduo;
+* uma correlação moderada entre os níveis de colesterol e a incidência de diabetes;
+* uma correçação moderada entre os valores IMC e os níveis de colesterol (corroborando a relação obesidade / risco de doenças coronárias)
+* uma correlação entre os valores de IMC e os níveis de hemoglobina glicosilada (corroborando a relação obesidade como fator de risco para incidência de diabetes)
+* uma correlação ligeira entre o rácio perímetro abdominal e o rácio colesterol/HDL, hemoglobina glicosilada (corroborando a tese dos autores de que o perímetro abdominal pode ser um indicador de diabetes e doença coronária)
+
+
+
+
+```{r}
+library(corrplot)
+diabetesNA_matriz <- diabetesNA[,c(-1, -3, -9, -10, -14, -15)]
+diabetesNA_matriz <- diabetesNA_matriz[sapply(diabetesNA_matriz, is.numeric)]
+M <- cor(diabetesNA_matriz)
+corrplot.mixed(M,lower.col = "black", number.cex = .7, tl.col = "blue", tl.cex = .6)
+```
+
+
+
+# Construção do modelo de regressão para a variável 'nível de hemoglobina glicosilada no sangue'
+
+```{r}
+attach(diabetesNA)
+lmod = lm(diabetesNA$glyhb ~ diabetesNA$stab.glu +
+            diabetesNA$ratio +
+            diabetesNA$location+age+gender + 
+            diabetesNA$frame + 
+            diabetesNA$bp.1s + 
+            diabetesNA$bp.1d + 
+            diabetesNA$time.ppn +
+            diabetesNA$bmi +
+            diabetesNA$whratio)
+coef(lmod)
+```
+
+```{r}
+summary(lmod)
+```
+
+```{r}
+#install.packages("tidyverse")
+#install.packages("caret")
+#install.packages("leaps")
+library(MASS)
+library(tidyverse)
+library(caret)
+library(leaps)
+```
+
+```{r}
+step.model_both <- stepAIC(lmod, direction = 'both', trace = FALSE)
+summary(step.model_both)
+```
+
+```{r}
+step.model_back <- stepAIC(lmod, direction = "backward", trace = FALSE)
+summary(step.model_back)
+```
+
+```{r}
+step.model_for <- stepAIC(lmod, direction = "forward", trace = FALSE)
+summary(step.model_for)
+```
+
+```{r}
+AIC(step.model_both)
+AIC(step.model_back)
+AIC(step.model_for)
+```
+
+## Avaliação das medidas de diagnóstico do modelo adotado
+
+Para decidir qual modelo stepwise avaliar comparamos o coeficiente de correlação, R<sup>2</sup> e o critério de informação de Akaike, AIC de cada modelo, sabendo que quanto maior o R<sup>2</sup> maior a correlação entre as variáveis e quanto menor o AIC melhor a qualidade do modelo.
+
+Obtivemos o maior R<sup>2</sup> e o menor AIC para os modelos "both" e "backward", portanto prosseguimos a nossa análise com o modelo "both", visto que ambos apresentam os mesmos valores.
+
+Analisando os valores p do modelo stepwise "both", verificamos que as variáveis stab.glu, ratio, age e time.ppn apresentam um valor de prova inferior a 0.05, assumindo que alfa = 0.05, logo existe significância estatística suficiente para dizer que as variáveis foram incluídas no modelo durante o processo de seleção de variáveis efetuada pelo método stepwise, o que significa que estas variáveis têm uma relação estatisticamente significativa com a variável dependente em estudo, glyhb, ou seja essas variáveis podem explicar o comportamento da variável dependente. 
+
+Analisando o coeficiente de determinação, R<sup>2</sup>, verificamos que apresenta um valor a rondar os 0.58, o que significa que 58% da variabilidade na variável dependente é explicada pelas variáveis independentes, podendo o ajuste ser considerado razoavelmente bom.
+
+
+
+## Verificação das condições de aplicabilidade
+
+### Verificação das condições dos resíduos
+
+```{r}
+plot(step.model_both)
+```
+
+Não existem observações com distâncias de Cook superiores a 1, o que indica que não há observações muito influentes no ajuste do modelo.
+
+```{r}
+cook = cooks.distance(step.model_both)
+pontInf=which(cook>1) # Para ver os pontos com distância de cook superior a 1 unidade
+pontInf
+```
+
+A média relativamente baixa e os quartis também indicam que, em geral, as observações não exercem uma influência substancial no modelo.
+
+```{r}
+summary(cook)
+```
+
+```{r}
+#leverage : hj>2(p+1)/n para que a observação possa ser considerada um outlier
+limhj=(2*(7+1))/189
+limhj
+```
+
+As observações 56 e 156 têm valores de leverage que excedem o limite calculado, sugerindo que essas observações podem ser consideradas outliers.
+
+```{r}
+hj=hatvalues(step.model_both)
+out=which(hj>limhj)
+out
+```
+
+A média relativamente baixa dos valores de leverage sugere que, em geral, as observações não exercem uma influência substancial no modelo.
+
+```{r}
+summary(hj)
+```
+
+### Normalidade e média zero
+
+Normalidade:
+Para avaliarmos este  parâmetro recorremos ao gráfico QQ-Plot e o Shapiro-Wilk test.
+
+QQ-PLOT:
+Este gráfico compara o valor real vs o valor esperado que seria característico de uma distribuição normal.Se os dados estiverem normalmente distribuídos, o gráfico mostra uma linha reta, ou quase reta, como é o caso da que obtivemos. Deste modo, podemos assumir a normalidade dos resíduos.
+
+Shapiro-Wilk:
+O p-value < 2.2e-16, ou seja, é inferior a 0.05 de modo que a distribuição em questão é significativamente diferente de uma distribuição normal. Contudo é preciso ter em conta que este teste tem limitações, nomeadamente à medida que a amostragem aumenta, o teste de Shapiro-Wilk torna-se mais sensível a pequenas discrepâncias, resultando numa maior probabilidade de rejeitar a hipótese nula.
+
+```{r}
+shapiro.test(residuals(step.model_both))
+```
+
+A fim de verificarmos uma das suposições padrão da regressão, na qual a média sobre os resíduos/erros deve ser 0, realizamos o t-test. Neste, não se rejeita a hipótese nula (p-value = 1, superior a 0.05), supomos, portanto, que a média é zero.
+
+```{r}
+t.test(residuals(step.model_both))
+```
+
+### Variância constante
+
+Analisando os gráficos Residuals vs Fitted e Scale-Location os resíduos aparentam ter homogeneidade, verificando-se a existência de 3 resíduos que parecem ser outliers, nomeadamente as observações 176, 303 e 330.
+
+Para inferir sobre os outliers e a sua severidade construímos um boxplot e as respetivas barreiras para identificar outliers severos e moderados. Verificamos que existem pelo menos 3 outliers severos que provavelmente correspondem às observações acima mencionadas.
+
+```{r}
+barreira1_sup = quantile(residuals(step.model_both), 0.75) + 1.5 * IQR(residuals(step.model_both))
+barreira2_sup = quantile(residuals(step.model_both), 0.75) + 3 * IQR(residuals(step.model_both))
+barreira1_inf = quantile(residuals(step.model_both), 0.75) - 1.5 * IQR(residuals(step.model_both))
+barreira2_inf = quantile(residuals(step.model_both), 0.75) - 3 * IQR(residuals(step.model_both))
+```
+
+```{r}
+boxplot(residuals(step.model_both),col="white")
+abline(h=barreira1_sup)
+abline(h=barreira2_sup)
+abline(h=barreira1_inf)
+abline(h=barreira2_inf)
+```
+
+```{r}
+boxplot.stats(step.model_both$residuals)
+```
+
+# Considerações finais
+
+No contexto da análise dos dados do *dataset* com recurso à regressão linear, concluímos que há uma correlação entre a hemoglobina glicosilada e as variáveis: níveis de glicose estabilizada no sangue, a idade e a razão colesterol/HDL, corroborando desta forma os valores da matriz de correlação. No entanto, importa referir que, contrariamente ao obtido na matriz de correlação, a variável tempo após a última refeição correlacionada com os níveis de glicose estabilizada. 
+
+Comparando os resultados obtidos com a tese defendida pelos autores do estudo, podemos concluir que, efetivamente, é plausível considerar a relação entre o risco severo de doenças coronárias e a diabetes. 
+
+Os resultados obtidos pela aplicação do modelo selecionado todavia não corroboram a tese de que o perímetro abdominal e a obesidade sejam fatores de risco para a incidência de diabetes. Contudo, importa referir, que apesar de os resultados obtidos na aplicação do modelo, ainda que consideremos adequado, não corroborarem esta teoria, a matriz de correlação aponta que esta poderá existir, carecendo de possíveis testes mais aprofundados no futuro.
